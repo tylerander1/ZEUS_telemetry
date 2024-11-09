@@ -1,0 +1,43 @@
+// Define RAM_DL as the base address for the Display List (example: 0x300000)
+// Define wr32 as a function to write 32-bit values to the Display List
+
+#include <stdint.h>
+#include "espi32_graphics.h"  // hypothetical header for graphics functions and macros
+
+#define RAM_DL 0x300000  // Example address for Display List memory
+
+// Function to write 32-bit command to RAM_DL
+void wr32(uint32_t address, uint32_t command) {
+    // Implementation to send the command to the display controller
+    // e.g., SPI write to a specific address on ESP32
+}
+
+void render_graphics() {
+    wr32(RAM_DL + 0, CLEAR(1, 1, 1));                  // Clear screen: color, stencil, and tag buffers
+
+    wr32(RAM_DL + 4, BEGIN(BITMAPS));                  // Start drawing bitmaps (for text)
+    wr32(RAM_DL + 8, VERTEX2II(220, 110, 31, 'F'));    // Draw 'F' in font 31 at (220, 110)
+    wr32(RAM_DL + 12, VERTEX2II(244, 110, 31, 'T'));   // Draw 'T' in font 31 at (244, 110)
+    wr32(RAM_DL + 16, VERTEX2II(270, 110, 31, 'D'));   // Draw 'D' in font 31 at (270, 110)
+    wr32(RAM_DL + 20, VERTEX2II(299, 110, 31, 'I'));   // Draw 'I' in font 31 at (299, 110)
+    wr32(RAM_DL + 24, END());                          // End bitmap commands
+
+    wr32(RAM_DL + 28, COLOR_RGB(160, 22, 22));         // Set color to red (RGB: 160, 22, 22)
+    wr32(RAM_DL + 32, POINT_SIZE(320));                // Set point size to 20 pixels (320/16 = 20 radius)
+
+    wr32(RAM_DL + 36, BEGIN(POINTS));                  // Begin drawing points
+    wr32(RAM_DL + 40, VERTEX2II(192, 133, 0, 0));      // Draw red point at (192, 133)
+    wr32(RAM_DL + 44, END());                          // End points commands
+
+    wr32(RAM_DL + 48, DISPLAY());                      // Display the image
+}
+
+int main() {
+    // Initialize display, SPI, or any peripherals needed before rendering
+
+    render_graphics();  // Call function to render graphics on display
+
+    // Optionally add a loop if refreshing or updating graphics continuously
+
+    return 0;
+}
