@@ -1,0 +1,87 @@
+#include <stdint.h>
+#include "espi32_graphics.h"  // hypothetical header for graphics functions and macros
+
+#define RAM_DL 0x300000  // Base address for Display List
+#define REG_HCYCLE 0x1024C  // Sample register addresses for FT81x (to be verified)
+#define REG_HOFFSET 0x10250
+#define REG_HSYNC0 0x10252
+#define REG_HSYNC1 0x10254
+#define REG_VCYCLE 0x10258
+#define REG_VOFFSET 0x1025C
+#define REG_VSYNC0 0x1025E
+#define REG_VSYNC1 0x10260
+#define REG_SWIZZLE 0x10264
+#define REG_PCLK_POL 0x10268
+#define REG_CSPREAD 0x1026C
+#define REG_HSIZE 0x10270
+#define REG_VSIZE 0x10274
+#define REG_DLSWAP 0x1024F
+#define REG_GPIO_DIR 0x1024C
+#define REG_GPIO 0x1024D
+#define REG_PCLK 0x1026A
+
+// Function prototypes
+void wr32(uint32_t address, uint32_t command);
+void wr16(uint32_t address, uint16_t command);
+void wr8(uint32_t address, uint8_t command);
+uint8_t rd8(uint32_t address);
+void MCU_SPI_CLK_Freq(uint32_t frequency);
+void host_command(uint8_t command);
+
+void initialize_display() {
+    MCU_SPI_CLK_Freq(11000000);        // Set SPI clock to <11 MHz
+    host_command(CLKEXT);              // Set external clock
+    host_command(ACTIVE);              // Activate FT81X
+
+    // Configure display registers for WQVGA resolution (480x272)
+    wr16(REG_HCYCLE, 548);
+    wr16(REG_HOFFSET, 43);
+    wr16(REG_HSYNC0, 0);
+    wr16(REG_HSYNC1, 41);
+    wr16(REG_VCYCLE, 292);
+    wr16(REG_VOFFSET, 12);
+    wr16(REG_VSYNC0, 0);
+    wr16(REG_VSYNC1, 10);
+    wr8(REG_SWIZZLE, 0);
+    wr8(REG_PCLK_POL, 1);
+    wr8(REG_CSPREAD, 1);
+    wr16(REG_HSIZE, 480);
+    wr16(REG_VSIZE, 272);
+
+    // First display list to initialize screen
+    wr32(RAM_DL + 0, CLEAR_COLOR_RGB(0, 0, 0));  // Black background
+    wr32(RAM_DL + 4, CLEAR(1, 1, 1));            // Clear screen with color, stencil, and tag buffers
+    wr32(RAM_DL + 8, DISPLAY());                 // Display the cleared screen
+
+    wr8(REG_DLSWAP, DLSWAP_FRAME);               // Swap display list
+    wr8(REG_GPIO_DIR, 0x80 | rd8(REG_GPIO_DIR)); // Set GPIO direction to output for display enable
+    wr8(REG_GPIO, 0x80 | rd8(REG_GPIO));         // Enable display
+    wr8(REG_PCLK, 5);                            // Set pixel clock and make display visible
+
+    MCU_SPI_CLK_Freq(30000000);                  // Increase SPI clock to up to 30 MHz for normal operations
+}
+
+void render_graphics() {
+    wr32(RAM_DL + 0, CLEAR(1, 1, 1));                  // Clear screen: color, stencil, and tag buffers
+    wr32(RAM_DL + 4, BEGIN(BITMAPS));                  // Start drawing bitmaps (for text)
+    wr32(RAM_DL + 8, VERTEX2II(220, 110, 31, 'F'));    // Draw 'F' in font 31 at (220, 110)
+    wr32(RAM_DL + 12, VERTEX2II(244, 110, 31, 'T'));   // Draw 'T' in font 31 at (244, 110)
+    wr32(RAM_DL + 16, VERTEX2II(270, 110, 31, 'D'));   // Draw 'D' in font 31 at (270, 110)
+    wr32(RAM_DL + 20, VERTEX2II(299, 110, 31, 'I'));   // Draw 'I' in font 31 at (299, 110)
+    wr32(RAM_DL + 24, END());                          // End bitmap commands
+
+    wr32(RAM_DL + 28, COLOR_RGB(160, 22, 22));         // Set color to red (RGB: 160, 22, 22)
+    wr32(RAM_DL + 32, POINT_SIZE(320));                // Set point size to 20 pixels (320/16 = 20 radius)
+
+    wr32(RAM_DL + 36, BEGIN(POINTS));                  // Begin drawing points
+    wr32(RAM_DL + 40, VERTEX2II(192, 133, 0, 0));      // Draw red point at (192, 133)
+    wr32(RAM_DL + 44, END());                          // End points commands
+
+    wr32(RAM_DL + 48, DISPLAY());                      // Display the image
+}
+
+int main() {
+    initialize_display();  // Initialize display with settings for FT81X
+    render_graphics();     // Render graphics on display
+    return 0;
+}
